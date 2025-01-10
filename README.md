@@ -38,7 +38,8 @@ The first time you run it you will want to use the -i option to initialze a new 
 
   but please edit the top of this program first!!!
 
-`# Begin User Defined Section
+```
+# Begin User Defined Section
 #----------------------------
 my $zone = "ssh-whitelist";
 my $lifeline = "101.121.32.210"; # whitelist init and cannot be removed
@@ -47,7 +48,8 @@ my $safe = "10.0."; # cannot add or remove ips that start with this
 my $service = "ssh";
 my $logger = "logger -p authpriv.warning";
 #----------------------------
-# End User Defined Section`
+# End User Defined Section
+```
 
 Example:
 
