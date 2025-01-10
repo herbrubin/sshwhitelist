@@ -39,6 +39,7 @@ The first time you run it you will want to use the -i option to initialze a new 
   but please edit the top of this program first!!!
 
 Example:
+
     sshwhitelist -a 192.168.1.0/24
     
     sshwhitelist -a 77.42.8.59
