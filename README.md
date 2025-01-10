@@ -18,6 +18,7 @@ The first time you run it you will want to use the -i option to initialze a new 
 
   It was written when tcp wrappers and /etc/hosts.deny was removed from Linux.
 
+```
   -a 1.2.3.4   Add this ip address to the white list, CIDR values are allowed
   
   -h           Show this help message
@@ -33,7 +34,7 @@ The first time you run it you will want to use the -i option to initialze a new 
   -V           show version 1.3 and exit
 
   Note: On a new system, you must initialize the special zone ssh-whitelist with:
-
+```
     sshwhitelist -i
 
   but please edit the top of this program first!!!
