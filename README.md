@@ -19,11 +19,17 @@ The first time you run it you will want to use the -i option to initialze a new 
   It was written when tcp wrappers and /etc/hosts.deny was removed from Linux.
 
   -a 1.2.3.4   Add this ip address to the white list, CIDR values are allowed
+  
   -h           Show this help message
+  
   -i           Initialize/create a special zone in the firewall called ssh-whitelist
+  
   -l           List the firewall rules related to the ssh whitelist zone ssh-whitelist
+  
   -L           List only the ips and CIDRs in the firewall zone ssh-whitelist
+  
   -r 1.2.3.4   Remove this ip address to the white list
+  
   -V           show version 1.3 and exit
 
   Note: On a new system, you must initialize the special zone ssh-whitelist with:
