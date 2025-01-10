@@ -62,3 +62,6 @@ Example:
     sshwhitelist -r 192.168.1.0/24
 
     sshwhitelist -L
+
+# Logging
+Activity is logged to /var/log/secure using rsyslogd and the logger command.
