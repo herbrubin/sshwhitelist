@@ -1,0 +1,250 @@
+#!/usr/bin/perl
+# init, add, remove and list ips allowed to ssh in using firewalld
+
+use strict;
+use Getopt::Std;
+use Data::Dumper;
+
+my $progname = $0;
+my $version = "1.4"; # written by Herb Rubin herbr@pfinders.com 01/09/2025
+
+# Begin User Defined Section
+#----------------------------
+my $zone = "ssh-whitelist";
+my $lifeline = "101.121.32.210"; # whitelist init and cannot be removed
+my $lan = "10.0.0.0/16"; # whitelist init with this in whitelist
+my $safe = "10.0."; # cannot add or remove ips that start with this
+my $service = "ssh";
+my $logger = "logger -p authpriv.warning";
+#----------------------------
+# End User Defined Section
+
+$progname = $1 if ($progname =~ /\/(\w+)$/);
+$ENV{'PATH'} = '/usr/bin:/usr/bin/X11:/sbin:.';
+
+my (%Options, @ips);
+&getopts("a:ilLr:hV",\%Options);
+
+&usage if ($Options{'h'});
+if ($Options{'V'}) {
+    print "$progname version $version\n" if ($Options{'V'});
+    exit;
+}
+usage() if ($Options{'h'});
+
+my $rel = `cat /etc/redhat-release`;
+chomp $rel;
+unless ($rel =~ /release 8/ || $rel =~ /release 9/) {
+    print "Warning: This program was only tested on Linux versions 8 and 9.\n";
+    exit;
+}
+
+if (!is_firewalld_running()) {
+    print "Error: firewalld is not running. Please start it.\n";
+    exit;
+}
+
+if ($Options{'l'}) {
+    list_zone();
+    exit;
+}
+
+if ($Options{'L'}) {
+    list_ips_in_zone();
+    exit;
+}
+
+if ($Options{'i'}) {
+    init_zone();
+    exit;
+}
+
+if ($Options{'a'} ne "") {
+    my $ip = "$Options{'a'}";
+    unless (is_ip($ip)) {
+        print "$ip is restricted from being added or removed from the $service whitelist\n";
+        exit;
+    }
+    if (already_added($ip)) {
+        print "$ip is already in the $service whitelist zone $zone\n";
+        exit;
+    }
+    
+    add_ip($ip);
+    list_zone();
+    exit;
+}
+if ($Options{'r'} ne "") {
+    my $ip = "$Options{'r'}";
+    unless (is_ip($ip)) {
+        print "$ip is restricted from being removed. No action taken.\n";
+        exit;
+    }
+    unless (already_added($ip)) {
+        print "$ip is not in the $service whitelist zone $zone. No action taken.\n";
+        exit;
+    }
+    remove_ip($ip);
+    list_zone();
+    exit;
+}
+
+sub add_ip {
+    # add this ip to the whitelist
+    my $ip = shift;
+    my $cmd = "firewall-cmd --zone=$zone --add-source=$ip --permanent 2>&1";
+    `$cmd`;
+    $cmd = "$logger \"$progname: added $ip to $service zone $zone\"";
+    `$cmd`;
+    $cmd = "firewall-cmd --reload";
+    `$cmd`;
+}
+
+sub remove_ip {
+    # remove ip from the whitelist
+    my $ip = shift;
+    my $cmd = "firewall-cmd --zone=$zone --remove-source=$ip --permanent 2>&1";
+    `$cmd`;
+    $cmd = "$logger \"$progname: removed $ip from $service zone $zone\"";
+    `$cmd`;
+    $cmd = "firewall-cmd --reload";
+    `$cmd`;
+}
+
+sub list_zone {
+    my $output = `firewall-cmd --zone=$zone --list-all 2>&1`;
+    print $output;
+    if ($output =~ /INVALID_ZONE/) {
+        print "You may need to initialize with: $progname -i\n";
+    }
+}
+
+sub get_whitelist {
+    my $ips = `firewall-cmd --zone=$zone --list-all | grep sources` ;
+    chomp $ips;
+    $ips =~ s/^\s+sources:\s+//;
+    @ips = split /\s+/, $ips;
+}
+
+sub list_ips_in_zone {
+    get_whitelist();
+    foreach my $ip (@ips) {
+        print "$ip\n";
+    }
+}
+
+sub is_ip {
+###############################################################
+# Return 0 if not valid ip or CIDR                            #
+# Return 0 if the ip is restricted to being added/removed     #
+# Return 1 if the string is a valid ip or CIDR style ip range #
+###############################################################
+    my ($str) = @_;
+    my $ipv4_regex = qr/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/;
+    my $cidr_regex = qr/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(3[0-2]|[1-2][0-9]|[0-9]))$/;
+    if ($str =~ /^$safe/ || $str eq $lifeline) {
+        return 0; # cannot add or remove this range
+    }
+    if ($str =~ /$cidr_regex/ || $str =~ /$ipv4_regex/) {
+        return 1; # valid ip or CIDR
+    }
+    return 0;
+}
+
+
+sub init_zone {
+    my $cmd = "firewall-cmd --get-zones | grep $zone";
+    my $output = `$cmd`;
+    if ($output ne "") {
+        print "firewall $zone already exists\n";
+        list_zone();
+        exit;
+    } else {
+        $cmd = "firewall-cmd --permanent --new-zone=$zone";
+        `$cmd`;
+        $cmd = "firewall-cmd --permanent --zone=$zone --add-source=$lan";
+        `$cmd`;
+        $cmd = "firewall-cmd --permanent --zone=$zone --add-source=$lifeline";
+        `$cmd`;
+        $cmd = "firewall-cmd --permanent --zone=$zone --add-service=$service";
+        `$cmd`;
+        $cmd = "firewall-cmd --permanent --zone=public --remove-service=ssh";
+        `$cmd`;
+        $cmd = "firewall-cmd --permanent --zone=public --remove-port=22/tcp";
+        `$cmd`;
+        $cmd = "firewall-cmd --reload";
+        `$cmd`;
+        $cmd = "firewall-cmd --get-zones";
+        print `$cmd`;
+        exit;
+    }
+
+}
+
+sub is_firewalld_running {
+    my $cmd = "firewall-cmd --state";
+    my $state = `$cmd`;
+    chomp $state;
+    return 1 if ($state eq "running");
+    return 0;
+}
+
+sub usage {
+  print <<HELP;
+  $progname [-hlLvV] -a 1.2.3.4 -r 1.2.3.4
+
+  Allows you to manage a whitelist of ip addresses for $service access on this server.
+  It requires firewalld to be running. 
+
+  It creates a new zone called $zone and moves the $service service to it from the public zone.
+
+  It was written when tcp wrappers and /etc/hosts.deny was removed from Linux.
+
+  -a 1.2.3.4   Add this ip address to the white list, CIDR values are allowed
+  -h           Show this help message
+  -i           Initialize/create a special zone in the firewall called $zone
+  -l           List the firewall rules related to the ssh whitelist zone $zone
+  -L           List only the ips and CIDRs in the firewall zone $zone
+  -r 1.2.3.4   Remove this ip address to the white list
+  -V           show version $version and exit
+
+  Note: On a new system, you must initialize the special zone $zone with:
+
+    $progname -i
+
+  but please edit the top of this program first!!!
+
+Example:
+    $progname -a 192.168.1.0/24
+    $progname -a 77.42.8.59
+
+    $progname -L
+    101.121.32.210
+    10.0.0.0/16
+    192.168.1.0/24
+    77.42.8.59
+
+    $progname -r 77.42.8.59
+    $progname -r 192.168.1.0/24
+
+    $progname -L
+    101.121.32.210
+    10.0.0.0/16
+
+HELP
+  exit;
+}
+
+sub already_added {
+    ############################################
+    # Return a 1 if this ip or CIDR is already #
+    # in the whitelist.                        #
+    ############################################
+    my ($ip) = @_;
+    get_whitelist();
+    foreach my $exists (@ips) {
+        return 1 if $exists eq $ip;
+    }
+    return 0;
+}
+
