@@ -1,5 +1,5 @@
 # sshwhitelist
-A script for Linux that manages an ssh whitelist similar to how hosts.deny used to do it. It uses firewalld instead on AlmaLinux 8 and higher.
+A script for Linux that manages an ssh whitelist similar to how hosts.deny used to do it. It uses firewalld. It works on AlmaLinux 8 and higher.
 
 This perl script will help you manage your list of IPs or CIDRs for ssh access to your server without you having to remember all the firewalld commands.
 The top section of the program should be edited before you run it because there are some ip addresses you will want to change.
