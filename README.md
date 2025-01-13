@@ -7,6 +7,18 @@ The top section of the program should be edited before you run it because there 
 # First time run to initialize
 The first time you run it you will want to use the -i option to initialze a new firewalld zone to keep your whitelist in.
 
+```
+# Begin User Defined Section
+#----------------------------
+my $zone = "ssh-whitelist";
+my $lifeline = "101.121.32.210"; # whitelist init and cannot be removed
+my $lan = "10.0.0.0/16"; # whitelist init with this in whitelist
+my $safe = "10.0."; # cannot add or remove ips that start with this
+my $service = "ssh";
+my $logger = "logger -p authpriv.warning";
+#----------------------------
+# End User Defined Section
+```
 
 # sshwhitelist -h
   sshwhitelist [-hlLvV] -a 1.2.3.4 -r 1.2.3.4
@@ -38,19 +50,6 @@ The first time you run it you will want to use the -i option to initialze a new 
     sshwhitelist -i
 
   but please edit the top of this program first!!!
-
-```
-# Begin User Defined Section
-#----------------------------
-my $zone = "ssh-whitelist";
-my $lifeline = "101.121.32.210"; # whitelist init and cannot be removed
-my $lan = "10.0.0.0/16"; # whitelist init with this in whitelist
-my $safe = "10.0."; # cannot add or remove ips that start with this
-my $service = "ssh";
-my $logger = "logger -p authpriv.warning";
-#----------------------------
-# End User Defined Section
-```
 
 Example:
 
